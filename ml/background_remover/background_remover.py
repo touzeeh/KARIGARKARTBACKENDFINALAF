@@ -12,7 +12,7 @@ class BackgroundRemover:
         print(f"Background remover device: {self.device}")
 
         self.model = AutoModelForImageSegmentation.from_pretrained(
-            "ZhengPeng7/BiRefNet",
+            "ZhengPeng7/BiRefNet_lite",
             trust_remote_code=True,
         )
 

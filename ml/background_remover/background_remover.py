@@ -10,13 +10,13 @@ class BackgroundRemover:
 
         model_path = hf_hub_download(
             repo_id="studioludens/birefnet-lite-512",
-            filename="onnx/model_fp16.onnx",
+            filename="onnx/model.onnx",
         )
 
         options = ort.SessionOptions()
         options.intra_op_num_threads = 1
         options.inter_op_num_threads = 1
-        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
 
         self.session = ort.InferenceSession(
             model_path,

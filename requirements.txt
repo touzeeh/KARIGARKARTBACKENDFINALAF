@@ -12,6 +12,7 @@ torch==2.14.0
 torchvision==0.29.0
 spandrel==0.4.2
 opencv-python-headless==5.0.0.93
+transformers
 
 # Gemini remains only for the existing audio transcription path
 google-genai

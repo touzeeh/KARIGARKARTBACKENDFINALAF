@@ -6,32 +6,28 @@ from huggingface_hub import hf_hub_download
 
 class BackgroundRemover:
     def __init__(self):
-        print("Initializing KarigarKart Background Remover with ONNX...")
-
-        self.input_size = 448
+        print("Initializing KarigarKart Background Remover with FP16 ONNX...")
 
         model_path = hf_hub_download(
-            repo_id="senty-au/BiRefNet_lite-ONNX-dynamic",
-            filename="onnx/model.onnx",
+            repo_id="studioludens/birefnet-lite-512",
+            filename="onnx/model_fp16.onnx",
         )
 
-        session_options = ort.SessionOptions()
-        session_options.intra_op_num_threads = 1
-        session_options.inter_op_num_threads = 1
-        session_options.graph_optimization_level = (
-            ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        )
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
+        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
         self.session = ort.InferenceSession(
             model_path,
-            sess_options=session_options,
+            sess_options=options,
             providers=["CPUExecutionProvider"],
         )
 
         self.input_name = self.session.get_inputs()[0].name
+        self.input_size = 512
 
-        print("ONNX Background Remover loaded successfully")
-        print(f"Input size: {self.input_size}x{self.input_size}")
+        print("FP16 ONNX Background Remover loaded successfully")
 
     def remove_background(self, image: Image.Image) -> Image.Image:
         original_size = image.size
@@ -39,25 +35,15 @@ class BackgroundRemover:
         image = image.convert("RGB")
 
         resized = image.resize(
-            (self.input_size, self.input_size),
+            (512, 512),
             Image.Resampling.BILINEAR,
         )
 
-        x = np.asarray(
-            resized,
-            dtype=np.float32,
-        ) / 255.0
+        x = np.asarray(resized, dtype=np.float32) / 255.0
 
         x = (
-            x
-            - np.array(
-                [0.485, 0.456, 0.406],
-                dtype=np.float32,
-            )
-        ) / np.array(
-            [0.229, 0.224, 0.225],
-            dtype=np.float32,
-        )
+            x - np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        ) / np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
         x = x.transpose(2, 0, 1)[None]
 

@@ -6,7 +6,23 @@ import base64
 
 
 
+
+
+
+
+
+
+
+
 import io
+
+
+
+
+
+
+
+
 
 
 
@@ -22,7 +38,23 @@ import json
 
 
 
+
+
+
+
+
+
+
+
 import math
+
+
+
+
+
+
+
+
 
 
 
@@ -38,7 +70,24 @@ import os
 
 
 
+
+
+
+
+
+
+
+
 import tempfile
+import threading
+
+
+
+
+
+
+
+
 
 
 
@@ -47,6 +96,14 @@ import tempfile
 
 
 from contextlib import asynccontextmanager
+
+
+
+
+
+
+
+
 
 
 
@@ -70,7 +127,31 @@ from pathlib import Path
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from dotenv import load_dotenv
+
+
+
+
+
+
+
+
 
 
 
@@ -86,7 +167,23 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 
 
 
+
+
+
+
+
+
+
+
 from fastapi.responses import Response
+
+
+
+
+
+
+
+
 
 
 
@@ -102,7 +199,23 @@ from starlette.concurrency import run_in_threadpool
 
 
 
+
+
+
+
+
+
+
+
 from pydantic import BaseModel, Field
+
+
+
+
+
+
+
+
 
 
 
@@ -118,7 +231,23 @@ from PIL import Image, ImageOps
 
 
 
+
+
+
+
+
+
+
+
 import numpy as np
+
+
+
+
+
+
+
+
 
 
 
@@ -134,7 +263,23 @@ import pandas as pd
 
 
 
+
+
+
+
+
+
+
+
 import joblib
+
+
+
+
+
+
+
+
 
 
 
@@ -158,7 +303,27 @@ from ultralytics import YOLO
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from services.gemini_service import GeminiService
+
+
+
+
 
 
 
@@ -170,7 +335,16 @@ from services.claude_service import ClaudeService
 
 
 
+
+
+
+
+
+
+
+
 from ml.image_enhancer.image_enhancer import ImageEnhancer
+
 from ml.background_remover.background_remover import BackgroundRemover
 
 
@@ -199,7 +373,43 @@ from ml.background_remover.background_remover import BackgroundRemover
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -215,7 +425,31 @@ from ml.background_remover.background_remover import BackgroundRemover
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -255,7 +489,39 @@ load_dotenv()
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -271,7 +537,31 @@ load_dotenv()
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -288,6 +578,14 @@ load_dotenv()
 
 
 ROOT = Path(__file__).parent
+
+
+
+
+
+
+
+
 
 
 
@@ -319,7 +617,39 @@ ML = ROOT / "ml"
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -335,7 +665,31 @@ ML = ROOT / "ml"
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -353,6 +707,57 @@ ML = ROOT / "ml"
 
 state = {}
 
+background_remover_lock = threading.Lock()
+
+def get_background_remover():
+    """Lazily initialize BiRefNet only when background removal is requested."""
+    if state.get("background_remover_ready"):
+        return state["background_remover"]
+
+    with background_remover_lock:
+        if state.get("background_remover_ready"):
+            return state["background_remover"]
+
+        try:
+            print("✂️ Initializing KarigarKart Background Remover on demand...")
+            remover = BackgroundRemover()
+            state["background_remover"] = remover
+            state["background_remover_ready"] = True
+            state["background_remover_error"] = None
+            print("✅ BiRefNet background remover initialized")
+            return remover
+        except Exception as e:
+            state["background_remover"] = None
+            state["background_remover_ready"] = False
+            state["background_remover_error"] = str(e)
+            print("⚠️ Background remover unavailable:", e)
+            raise
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -376,6 +781,14 @@ state = {}
 
 
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -391,7 +804,31 @@ state = {}
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -415,6 +852,14 @@ state = {}
 
 
 
+
+
+
+
+
+
+
+
 async def lifespan(app: FastAPI):
 
 
@@ -431,7 +876,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ----------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -447,7 +916,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
     # ----------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -471,7 +964,23 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         state["detector"] = YOLO(
+
+
+
+
+
+
+
+
 
 
 
@@ -487,7 +996,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -511,6 +1044,14 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
             (ML / "new_ml" / "class_metadata.json").read_text()
 
 
@@ -519,7 +1060,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -543,6 +1108,14 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
             int(k): v["class_name"]
 
 
@@ -551,7 +1124,23 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
             for k, v in state["metadata"].items()
+
+
+
+
+
+
+
+
 
 
 
@@ -575,7 +1164,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         if state["detector"].names != expected:
+
+
+
+
+
+
+
+
 
 
 
@@ -599,7 +1212,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         state["price"] = joblib.load(
+
+
+
+
+
+
+
+
 
 
 
@@ -615,7 +1252,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -639,6 +1300,14 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
             (ML / "price_ml" / "models" / "model_info.json").read_text()
 
 
@@ -647,7 +1316,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -679,7 +1372,39 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         print("✅ ML models loaded successfully")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -711,6 +1436,22 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         state["ready"] = False
 
 
@@ -719,7 +1460,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         state["error"] = str(e)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -759,7 +1524,39 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ----------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -775,7 +1572,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
     # ----------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -807,7 +1628,39 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         state["gemini"] = GeminiService()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -839,7 +1692,39 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         print("✅ Gemini AI initialized successfully")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -871,7 +1756,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         state["gemini"] = None
+
+
+
+
+
+
+
+
 
 
 
@@ -887,7 +1796,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         state["gemini_error"] = str(e)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -927,6 +1860,30 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ----------------------------
 
 
@@ -935,7 +1892,19 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
     # ----------------------------
+
+
+
+
 
 
 
@@ -943,7 +1912,19 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
     # ----------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -959,7 +1940,23 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         state["claude"] = ClaudeService()
+
+
+
+
+
+
+
+
 
 
 
@@ -975,7 +1972,23 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         print("✅ Claude AI initialized successfully")
+
+
+
+
+
+
+
+
 
 
 
@@ -991,7 +2004,19 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         state["claude"] = None
+
+
+
+
 
 
 
@@ -999,7 +2024,19 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
         state["claude_error"] = str(e)
+
+
+
+
+
+
+
+
 
 
 
@@ -1019,7 +2056,27 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     # Initialize local image enhancer
+
+
+
+
+
+
+
+
 
 
 
@@ -1043,7 +2100,39 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     try:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1067,7 +2156,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         state["image_enhancer_ready"] = True
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1099,7 +2212,39 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     except Exception as e:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1123,7 +2268,23 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
         state["image_enhancer_ready"] = False
+
+
+
+
+
+
+
+
 
 
 
@@ -1147,6 +2308,22 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         print("⚠️ Local ML image enhancer unavailable:", e)
 
 
@@ -1155,57 +2332,6 @@ async def lifespan(app: FastAPI):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # ----------------------------
-
-    # Initialize BiRefNet background remover
-
-    # ----------------------------
-
-
-
-    try:
-
-
-
-        state["background_remover"] = BackgroundRemover()
-
-        state["background_remover_ready"] = True
-
-
-
-        print("✅ BiRefNet background remover initialized")
-
-
-
-    except Exception as e:
-
-
-
-        state["background_remover"] = None
-
-        state["background_remover_ready"] = False
-
-        state["background_remover_error"] = str(e)
-
-
-
-        print("⚠️ Background remover unavailable:", e)
 
 
 
@@ -1235,7 +2361,39 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -1251,7 +2409,31 @@ async def lifespan(app: FastAPI):
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1275,6 +2457,14 @@ app = FastAPI(
 
 
 
+
+
+
+
+
+
+
+
     title="KarigarKart Fresh Backend",
 
 
@@ -1283,7 +2473,23 @@ app = FastAPI(
 
 
 
+
+
+
+
+
+
+
+
     lifespan=lifespan,
+
+
+
+
+
+
+
+
 
 
 
@@ -1315,7 +2521,39 @@ app = FastAPI(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -1331,7 +2569,31 @@ app = FastAPI(
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1355,7 +2617,23 @@ app = FastAPI(
 
 
 
+
+
+
+
+
+
+
+
 @app.get("/api/v1/health")
+
+
+
+
+
+
+
+
 
 
 
@@ -1379,7 +2657,31 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return {
+
+
+
+
+
+
+
+
 
 
 
@@ -1395,7 +2697,23 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
             "ok"
+
+
+
+
+
+
+
+
 
 
 
@@ -1411,6 +2729,14 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
             else "degraded"
 
 
@@ -1419,7 +2745,31 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1443,6 +2793,14 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
             state.get("ready")
 
 
@@ -1451,7 +2809,31 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1475,6 +2857,14 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
             state.get("gemini_ready")
 
 
@@ -1483,7 +2873,31 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1503,11 +2917,27 @@ def health():
 
 
 
+
+
+
+
             state.get("claude_ready")
 
 
 
+
+
+
+
         ),
+
+
+
+
+
+
+
+
 
 
 
@@ -1523,6 +2953,14 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
             state.get("image_enhancer_ready")
 
 
@@ -1531,7 +2969,31 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1551,11 +3013,23 @@ def health():
 
 
 
+
+
+
+
             state.get("background_remover_ready")
 
 
 
+
+
+
+
         ),
+
+
+
+
 
 
 
@@ -1563,7 +3037,15 @@ def health():
 
 
 
+
+
+
+
             "background_remover_error"
+
+
+
+
 
 
 
@@ -1573,7 +3055,29 @@ def health():
 
 
 
+
+
+
+
+
+
         "error": state.get("error"),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1605,7 +3109,31 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "claude_error": state.get("claude_error"),
+
+
+
+
+
+
+
+
 
 
 
@@ -1621,6 +3149,14 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
             "image_enhancer_error"
 
 
@@ -1629,7 +3165,23 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
 
 
 
@@ -1661,7 +3213,35 @@ def health():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
 
 
 
@@ -1669,7 +3249,19 @@ def health():
 
 
 
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -1681,7 +3273,19 @@ def health():
 
 
 
+
+
+
+
 def test_claude():
+
+
+
+
+
+
+
+
 
 
 
@@ -1693,7 +3297,15 @@ def test_claude():
 
 
 
+
+
+
+
         raise HTTPException(
+
+
+
+
 
 
 
@@ -1701,7 +3313,15 @@ def test_claude():
 
 
 
+
+
+
+
             "Claude AI unavailable: "
+
+
+
+
 
 
 
@@ -1709,7 +3329,15 @@ def test_claude():
 
 
 
+
+
+
+
                 state.get(
+
+
+
+
 
 
 
@@ -1717,7 +3345,15 @@ def test_claude():
 
 
 
+
+
+
+
                     "Claude not configured"
+
+
+
+
 
 
 
@@ -1725,11 +3361,27 @@ def test_claude():
 
 
 
+
+
+
+
             )
 
 
 
+
+
+
+
         )
+
+
+
+
+
+
+
+
 
 
 
@@ -1745,7 +3397,23 @@ def test_claude():
 
 
 
+
+
+
+
+
+
+
+
         result = state["claude"].test()
+
+
+
+
+
+
+
+
 
 
 
@@ -1757,7 +3425,15 @@ def test_claude():
 
 
 
+
+
+
+
             "success": True,
+
+
+
+
 
 
 
@@ -1765,7 +3441,19 @@ def test_claude():
 
 
 
+
+
+
+
         }
+
+
+
+
+
+
+
+
 
 
 
@@ -1781,7 +3469,23 @@ def test_claude():
 
 
 
+
+
+
+
+
+
+
+
         print("❌ Claude test failed:", e)
+
+
+
+
+
+
+
+
 
 
 
@@ -1793,11 +3497,23 @@ def test_claude():
 
 
 
+
+
+
+
             502,
 
 
 
+
+
+
+
             "Claude test failed"
+
+
+
+
 
 
 
@@ -1813,7 +3529,27 @@ def test_claude():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -1829,7 +3565,31 @@ def test_claude():
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1861,7 +3621,39 @@ def ready():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if not state.get("ready"):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1885,7 +3677,23 @@ def ready():
 
 
 
+
+
+
+
+
+
+
+
             503,
+
+
+
+
+
+
+
+
 
 
 
@@ -1901,6 +3709,14 @@ def ready():
 
 
 
+
+
+
+
+
+
+
+
             + str(state.get("error", "not loaded"))
 
 
@@ -1909,7 +3725,39 @@ def ready():
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1949,7 +3797,39 @@ def gemini_ready():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if not state.get("gemini_ready"):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1973,7 +3853,23 @@ def gemini_ready():
 
 
 
+
+
+
+
+
+
+
+
             503,
+
+
+
+
+
+
+
+
 
 
 
@@ -1989,7 +3885,23 @@ def gemini_ready():
 
 
 
+
+
+
+
+
+
+
+
             + str(
+
+
+
+
+
+
+
+
 
 
 
@@ -2005,7 +3917,23 @@ def gemini_ready():
 
 
 
+
+
+
+
+
+
+
+
                     "gemini_error",
+
+
+
+
+
+
+
+
 
 
 
@@ -2021,7 +3949,23 @@ def gemini_ready():
 
 
 
+
+
+
+
+
+
+
+
                 )
+
+
+
+
+
+
+
+
 
 
 
@@ -2037,7 +3981,39 @@ def gemini_ready():
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2077,7 +4053,39 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if len(raw) > 10_000_000:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2101,7 +4109,23 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
             413,
+
+
+
+
+
+
+
+
 
 
 
@@ -2117,7 +4141,31 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2149,7 +4197,31 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         im = Image.open(
+
+
+
+
+
+
+
+
 
 
 
@@ -2165,7 +4237,31 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2197,6 +4293,22 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         im = Image.open(
 
 
@@ -2205,7 +4317,23 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
             io.BytesIO(raw)
+
+
+
+
+
+
+
+
 
 
 
@@ -2229,7 +4357,31 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         im = ImageOps.exif_transpose(
+
+
+
+
+
+
+
+
 
 
 
@@ -2245,7 +4397,31 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
         ).convert("RGB")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2277,7 +4453,31 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -2293,6 +4493,14 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
                 "Image resolution too large"
 
 
@@ -2301,7 +4509,31 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2333,6 +4565,22 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     except HTTPException:
 
 
@@ -2341,7 +4589,31 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
         raise
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2373,7 +4645,31 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -2389,6 +4685,14 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
             "Invalid image"
 
 
@@ -2397,7 +4701,39 @@ def decode_image(raw):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2429,7 +4765,23 @@ def claude_ready():
 
 
 
+
+
+
+
+
+
+
+
     if not state.get("claude_ready"):
+
+
+
+
+
+
+
+
 
 
 
@@ -2445,7 +4797,23 @@ def claude_ready():
 
 
 
+
+
+
+
+
+
+
+
             503,
+
+
+
+
+
+
+
+
 
 
 
@@ -2461,7 +4829,23 @@ def claude_ready():
 
 
 
+
+
+
+
+
+
+
+
             + str(
+
+
+
+
+
+
+
+
 
 
 
@@ -2477,7 +4861,23 @@ def claude_ready():
 
 
 
+
+
+
+
+
+
+
+
                     "claude_error",
+
+
+
+
+
+
+
+
 
 
 
@@ -2493,6 +4893,14 @@ def claude_ready():
 
 
 
+
+
+
+
+
+
+
+
                 )
 
 
@@ -2501,7 +4909,23 @@ def claude_ready():
 
 
 
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
 
 
 
@@ -2525,7 +4949,31 @@ def claude_ready():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -2541,7 +4989,31 @@ def claude_ready():
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2573,7 +5045,39 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     ready()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2597,7 +5101,23 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
         np.asarray(im),
+
+
+
+
+
+
+
+
 
 
 
@@ -2613,7 +5133,23 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
         imgsz=640,
+
+
+
+
+
+
+
+
 
 
 
@@ -2629,6 +5165,14 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
         verbose=False,
 
 
@@ -2637,7 +5181,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
     )[0]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2669,7 +5237,39 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if result.masks is not None:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2693,6 +5293,14 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
             result.boxes,
 
 
@@ -2701,7 +5309,23 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
             result.masks.xyn
+
+
+
+
+
+
+
+
 
 
 
@@ -2725,6 +5349,22 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             cls = int(
 
 
@@ -2733,7 +5373,23 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
                 box.cls.item()
+
+
+
+
+
+
+
+
 
 
 
@@ -2757,7 +5413,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             info = state["metadata"][
+
+
+
+
+
+
+
+
 
 
 
@@ -2773,7 +5453,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
             ]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2805,7 +5509,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 "object_id":
+
+
+
+
+
+
+
+
 
 
 
@@ -2829,7 +5557,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 "class_name":
+
+
+
+
+
+
+
+
 
 
 
@@ -2853,7 +5605,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 "handicraft_type":
+
+
+
+
+
+
+
+
 
 
 
@@ -2877,7 +5653,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 "material":
+
+
+
+
+
+
+
+
 
 
 
@@ -2901,7 +5701,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 "category_family":
+
+
+
+
+
+
+
+
 
 
 
@@ -2925,7 +5749,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 "joint_confidence":
+
+
+
+
+
+
+
+
 
 
 
@@ -2941,7 +5789,23 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
                         box.conf.item()
+
+
+
+
+
+
+
+
 
 
 
@@ -2965,7 +5829,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 "object_mask_polygon_normalized":
+
+
+
+
+
+
+
+
 
 
 
@@ -2989,7 +5877,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 "bounding_box_xyxy_pixels":
+
+
+
+
+
+
+
+
 
 
 
@@ -3013,7 +5925,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 "material_status":
+
+
+
+
+
+
+
+
 
 
 
@@ -3029,7 +5965,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
             })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3061,7 +6021,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "image_width_px":
+
+
+
+
+
+
+
+
 
 
 
@@ -3085,7 +6069,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "image_height_px":
+
+
+
+
+
+
+
+
 
 
 
@@ -3109,7 +6117,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "detected_object_count":
+
+
+
+
+
+
+
+
 
 
 
@@ -3133,6 +6165,22 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "objects":
 
 
@@ -3141,7 +6189,23 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
             objects,
+
+
+
+
+
+
+
+
 
 
 
@@ -3173,7 +6237,39 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -3189,7 +6285,31 @@ def detect(im):
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3206,26 +6326,62 @@ def detect(im):
 
 
 def price(class_name, product_form):
+
     ready()
+
+
 
     info = state["price_info"]
 
+
+
     # YOLO and price-model use slightly different class-name formatting.
+
     # YOLO: ajrakh_cotton
+
     # Price model: ajrakh__cotton
+
     price_class_name = class_name
 
+
+
     if price_class_name not in info["training_class_counts"]:
-        normalized_class_name = class_name.replace("_", "__", 1)
+
+        normalized_class_name = class_name.replace("\_", "\_\_", 1)
+
+
 
         if normalized_class_name in info["training_class_counts"]:
+
             price_class_name = normalized_class_name
 
+
+
     if price_class_name not in info["training_class_counts"]:
+
         raise HTTPException(
+
             422,
+
             "Class not present in price-model training data"
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3257,7 +6413,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -3273,7 +6453,23 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
             "Unknown product_form; choose one of "
+
+
+
+
+
+
+
+
 
 
 
@@ -3289,7 +6485,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3321,7 +6541,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     raw = float(
+
+
+
+
+
+
+
+
 
 
 
@@ -3337,7 +6581,23 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
             pd.DataFrame([
+
+
+
+
+
+
+
+
 
 
 
@@ -3353,7 +6613,23 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
                     "class_name": price_class_name,
+
+
+
+
+
+
+
+
 
 
 
@@ -3369,7 +6645,23 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
                 }
+
+
+
+
+
+
+
+
 
 
 
@@ -3385,6 +6677,14 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
         )[0]
 
 
@@ -3393,7 +6693,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3425,7 +6749,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -3441,7 +6789,23 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
             "Invalid model output"
+
+
+
+
+
+
+
+
 
 
 
@@ -3465,7 +6829,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     output = os.getenv(
+
+
+
+
+
+
+
+
 
 
 
@@ -3481,6 +6869,14 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
         "log1p"
 
 
@@ -3489,7 +6885,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3521,7 +6941,39 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         value = math.expm1(raw)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3553,7 +7005,39 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         value = raw
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3585,7 +7069,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -3601,6 +7109,14 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
             "Invalid PRICE_PIPELINE_OUTPUT configuration"
 
 
@@ -3609,7 +7125,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3641,7 +7181,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "listed_price_estimate_inr":
+
+
+
+
+
+
+
+
 
 
 
@@ -3665,7 +7229,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "class_name":
+
+
+
+
+
+
+
+
 
 
 
@@ -3689,7 +7277,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "product_form":
+
+
+
+
+
+
+
+
 
 
 
@@ -3713,7 +7325,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "basis":
+
+
+
+
+
+
+
+
 
 
 
@@ -3736,8 +7372,32 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 "training_class_products":
+
     info["training_class_counts"][price_class_name],
+
+
+
+
+
+
+
+
 
 
 
@@ -3769,7 +7429,39 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -3785,7 +7477,31 @@ def price(class_name, product_form):
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3817,6 +7533,22 @@ class PriceRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     class_name: str
 
 
@@ -3833,7 +7565,47 @@ class PriceRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     product_form: str = "unspecified"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3865,7 +7637,31 @@ class PriceRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
 def predict_price(req: PriceRequest):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3889,6 +7685,14 @@ def predict_price(req: PriceRequest):
 
 
 
+
+
+
+
+
+
+
+
         req.class_name,
 
 
@@ -3897,7 +7701,23 @@ def predict_price(req: PriceRequest):
 
 
 
+
+
+
+
+
+
+
+
         req.product_form
+
+
+
+
+
+
+
+
 
 
 
@@ -3929,7 +7749,39 @@ def predict_price(req: PriceRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -3945,7 +7797,31 @@ def predict_price(req: PriceRequest):
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3969,6 +7845,14 @@ def predict_price(req: PriceRequest):
 
 
 
+
+
+
+
+
+
+
+
 async def predict_image(
 
 
@@ -3977,7 +7861,23 @@ async def predict_image(
 
 
 
+
+
+
+
+
+
+
+
     image: UploadFile = File(...)
+
+
+
+
+
+
+
+
 
 
 
@@ -4001,7 +7901,39 @@ async def predict_image(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     raw = await image.read()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4025,7 +7957,23 @@ async def predict_image(
 
 
 
+
+
+
+
+
+
+
+
         decode_image(raw)
+
+
+
+
+
+
+
+
 
 
 
@@ -4057,7 +8005,39 @@ async def predict_image(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -4073,7 +8053,31 @@ async def predict_image(
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4097,7 +8101,23 @@ async def predict_image(
 
 
 
+
+
+
+
+
+
+
+
 async def analyze(
+
+
+
+
+
+
+
+
 
 
 
@@ -4113,7 +8133,23 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
     product_form: str = Form("unspecified"),
+
+
+
+
+
+
+
+
 
 
 
@@ -4129,7 +8165,31 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
 ):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4161,7 +8221,31 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     result = detect(
+
+
+
+
+
+
+
+
 
 
 
@@ -4177,7 +8261,31 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4209,7 +8317,39 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if not objs:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4233,6 +8373,14 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
             422,
 
 
@@ -4241,7 +8389,23 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
             "No product detected"
+
+
+
+
+
+
+
+
 
 
 
@@ -4265,7 +8429,31 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (
+
+
+
+
+
+
+
+
 
 
 
@@ -4281,7 +8469,23 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
         and object_index is None
+
+
+
+
+
+
+
+
 
 
 
@@ -4305,7 +8509,39 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         return {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4337,7 +8573,39 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             "detection": result,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4361,7 +8629,23 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
                 "Select an object_index before pricing",
+
+
+
+
+
+
+
+
 
 
 
@@ -4385,7 +8669,31 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     idx = (
+
+
+
+
+
+
+
+
 
 
 
@@ -4401,7 +8709,23 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
         if object_index is not None
+
+
+
+
+
+
+
+
 
 
 
@@ -4417,7 +8741,31 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4449,7 +8797,31 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -4465,7 +8837,23 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
             "Invalid object_index"
+
+
+
+
+
+
+
+
 
 
 
@@ -4489,7 +8877,39 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4521,7 +8941,39 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "detection": result,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4553,7 +9005,31 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "price": price(
+
+
+
+
+
+
+
+
 
 
 
@@ -4569,6 +9045,14 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
             product_form
 
 
@@ -4577,7 +9061,23 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
 
 
 
@@ -4609,7 +9109,39 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -4625,7 +9157,31 @@ async def analyze(
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4657,7 +9213,39 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     description: str = ""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4689,7 +9277,39 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     image_base64: str | None = None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4721,7 +9341,31 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     raw_material_cost: float = Field(
+
+
+
+
+
+
+
+
 
 
 
@@ -4737,6 +9381,14 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
         ge=0
 
 
@@ -4745,7 +9397,31 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4769,7 +9445,23 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
         0,
+
+
+
+
+
+
+
+
 
 
 
@@ -4785,7 +9477,31 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4809,7 +9525,23 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
         0,
+
+
+
+
+
+
+
+
 
 
 
@@ -4825,7 +9557,31 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4849,7 +9605,23 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
         0,
+
+
+
+
+
+
+
+
 
 
 
@@ -4865,7 +9637,31 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4889,7 +9685,23 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
         0,
+
+
+
+
+
+
+
+
 
 
 
@@ -4905,7 +9717,31 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4929,7 +9765,23 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
         0,
+
+
+
+
+
+
+
+
 
 
 
@@ -4945,7 +9797,31 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4969,7 +9845,23 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
         0,
+
+
+
+
+
+
+
+
 
 
 
@@ -4985,7 +9877,31 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5009,7 +9925,23 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
         20,
+
+
+
+
+
+
+
+
 
 
 
@@ -5025,6 +9957,14 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
         le=1000
 
 
@@ -5033,7 +9973,39 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5065,7 +10037,31 @@ class PricingRequest(BaseModel):
 
 
 
+
+
+
+
+
+
+
+
 def pricing(req: PricingRequest):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5089,7 +10085,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
         req.raw_material_cost,
+
+
+
+
+
+
+
+
 
 
 
@@ -5105,7 +10117,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
         req.electricity_cost,
+
+
+
+
+
+
+
+
 
 
 
@@ -5121,7 +10149,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
         req.transport_cost,
+
+
+
+
+
+
+
+
 
 
 
@@ -5137,7 +10181,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
         req.other_cost,
+
+
+
+
+
+
+
+
 
 
 
@@ -5161,7 +10221,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     floor = math.ceil(
+
+
+
+
+
+
+
+
 
 
 
@@ -5177,6 +10261,14 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             1 + req.desired_margin_percent / 100
 
 
@@ -5185,7 +10277,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
 
 
 
@@ -5209,6 +10317,22 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     result = None
 
 
@@ -5217,7 +10341,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
     warning = None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5249,7 +10397,39 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         try:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5273,6 +10453,14 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 req.image_base64.split(",")[-1],
 
 
@@ -5281,7 +10469,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 validate=True
+
+
+
+
+
+
+
+
 
 
 
@@ -5305,7 +10509,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             objects = detect(
+
+
+
+
+
+
+
+
 
 
 
@@ -5321,7 +10549,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             )["objects"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5353,7 +10605,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 result = price(
+
+
+
+
+
+
+
+
 
 
 
@@ -5369,6 +10645,14 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                     req.product_form
 
 
@@ -5377,7 +10661,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5409,7 +10717,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 warning = (
+
+
+
+
+
+
+
+
 
 
 
@@ -5425,6 +10757,14 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                     "select a single product for an ML estimate"
 
 
@@ -5433,7 +10773,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5465,6 +10829,22 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 warning = (
 
 
@@ -5473,7 +10853,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                     "No supported handicraft detected"
+
+
+
+
+
+
+
+
 
 
 
@@ -5497,7 +10893,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         except (
+
+
+
+
+
+
+
+
 
 
 
@@ -5513,6 +10933,14 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             HTTPException
 
 
@@ -5521,7 +10949,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
         ) as e:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5553,7 +11005,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     suggested = (
+
+
+
+
+
+
+
+
 
 
 
@@ -5569,7 +11045,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             floor,
+
+
+
+
+
+
+
+
 
 
 
@@ -5585,7 +11077,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 result[
+
+
+
+
+
+
+
+
 
 
 
@@ -5601,7 +11109,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 ]
+
+
+
+
+
+
+
+
 
 
 
@@ -5617,7 +11141,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
 
 
 
@@ -5633,6 +11173,14 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
         else floor
 
 
@@ -5641,7 +11189,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5673,7 +11245,39 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "success": True,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5697,7 +11301,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             suggested,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5729,7 +11357,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             "low":
+
+
+
+
+
+
+
+
 
 
 
@@ -5753,6 +11405,22 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             "high":
 
 
@@ -5761,7 +11429,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 suggested,
+
+
+
+
+
+
+
+
 
 
 
@@ -5785,6 +11469,22 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "b2b_price":
 
 
@@ -5793,7 +11493,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             floor,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5817,7 +11541,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             suggested,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5841,7 +11589,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             floor,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5865,7 +11637,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             result,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5889,7 +11685,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             (
+
+
+
+
+
+
+
+
 
 
 
@@ -5905,7 +11717,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 if result
+
+
+
+
+
+
+
+
 
 
 
@@ -5921,7 +11749,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5945,7 +11797,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             (
+
+
+
+
+
+
+
+
 
 
 
@@ -5961,7 +11829,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 "estimate of catalogue listing price."
+
+
+
+
+
+
+
+
 
 
 
@@ -5977,7 +11861,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 else
+
+
+
+
+
+
+
+
 
 
 
@@ -5993,7 +11893,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
                 "used supplied costs and markup."
+
+
+
+
+
+
+
+
 
 
 
@@ -6017,6 +11933,22 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "warning":
 
 
@@ -6025,7 +11957,23 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
             warning,
+
+
+
+
+
+
+
+
 
 
 
@@ -6057,7 +12005,39 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -6073,7 +12053,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6097,6 +12101,14 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
 @app.post("/ai/catalog/generate")
 
 
@@ -6105,7 +12117,31 @@ def pricing(req: PricingRequest):
 
 
 
+
+
+
+
+
+
+
+
 def catalog(payload: dict):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6137,7 +12173,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ----------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -6153,7 +12213,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     # ----------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6177,7 +12261,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         payload.get("description")
+
+
+
+
+
+
+
+
 
 
 
@@ -6193,7 +12293,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         or payload.get("text")
+
+
+
+
+
+
+
+
 
 
 
@@ -6209,6 +12325,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         or ""
 
 
@@ -6217,7 +12341,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6241,7 +12389,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         payload.get("category")
+
+
+
+
+
+
+
+
 
 
 
@@ -6257,6 +12421,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         or ""
 
 
@@ -6265,7 +12437,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6289,6 +12485,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         payload.get("language")
 
 
@@ -6297,7 +12501,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         or "en"
+
+
+
+
+
+
+
+
 
 
 
@@ -6321,7 +12541,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ----------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -6337,6 +12581,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     # basic detected information when possible.
 
 
@@ -6345,7 +12597,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     # ----------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6369,7 +12645,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         payload.get("image_base64")
+
+
+
+
+
+
+
+
 
 
 
@@ -6385,7 +12677,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6417,7 +12733,39 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if image_base64:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6449,7 +12797,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             raw = base64.b64decode(
+
+
+
+
+
+
+
+
 
 
 
@@ -6465,6 +12837,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
                 validate=True
 
 
@@ -6473,7 +12853,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6497,6 +12901,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
                 decode_image(raw)
 
 
@@ -6505,7 +12917,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6537,7 +12973,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 detected_context = json.dumps(
+
+
+
+
+
+
+
+
 
 
 
@@ -6553,6 +13013,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
                     ensure_ascii=False
 
 
@@ -6561,7 +13029,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
                 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6593,7 +13085,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             print(
+
+
+
+
+
+
+
+
 
 
 
@@ -6609,6 +13125,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
                 e
 
 
@@ -6617,7 +13141,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6649,7 +13197,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         description = (
+
+
+
+
+
+
+
+
 
 
 
@@ -6665,7 +13237,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6697,7 +13293,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         description += (
+
+
+
+
+
+
+
+
 
 
 
@@ -6713,7 +13333,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             + detected_context
+
+
+
+
+
+
+
+
 
 
 
@@ -6737,7 +13373,39 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     try:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6761,7 +13429,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             description=description,
+
+
+
+
+
+
+
+
 
 
 
@@ -6777,6 +13461,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             language=language,
 
 
@@ -6785,7 +13477,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6817,7 +13533,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         print(
+
+
+
+
+
+
+
+
 
 
 
@@ -6833,6 +13573,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             e
 
 
@@ -6841,7 +13589,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6865,7 +13637,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             502,
+
+
+
+
+
+
+
+
 
 
 
@@ -6881,7 +13669,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             + str(e)
+
+
+
+
+
+
+
+
 
 
 
@@ -6905,7 +13709,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ----------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -6921,7 +13749,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     # ----------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -6937,6 +13781,14 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     # from the existing Flutter code.
 
 
@@ -6945,7 +13797,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     # ----------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6977,6 +13853,22 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "success": True,
 
 
@@ -6993,7 +13885,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "title":
+
+
+
+
+
+
+
+
 
 
 
@@ -7017,7 +13933,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "description":
+
+
+
+
+
+
+
+
 
 
 
@@ -7041,7 +13981,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "category":
+
+
+
+
+
+
+
+
 
 
 
@@ -7065,7 +14029,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "tags":
+
+
+
+
+
+
+
+
 
 
 
@@ -7089,6 +14077,22 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "draft":
 
 
@@ -7097,7 +14101,23 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             result,
+
+
+
+
+
+
+
+
 
 
 
@@ -7129,7 +14149,39 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -7145,7 +14197,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7169,7 +14245,31 @@ def catalog(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
 def generate_title(payload: dict):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7201,7 +14301,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     description = (
+
+
+
+
+
+
+
+
 
 
 
@@ -7217,7 +14341,23 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         or payload.get("product_description")
+
+
+
+
+
+
+
+
 
 
 
@@ -7233,6 +14373,14 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         or ""
 
 
@@ -7241,7 +14389,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7265,7 +14437,23 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         payload.get("category")
+
+
+
+
+
+
+
+
 
 
 
@@ -7281,7 +14469,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7313,7 +14525,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -7329,7 +14565,23 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             "description is required"
+
+
+
+
+
+
+
+
 
 
 
@@ -7353,7 +14605,39 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     try:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7377,7 +14661,23 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             description=description,
+
+
+
+
+
+
+
+
 
 
 
@@ -7393,7 +14693,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7425,7 +14749,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         print(
+
+
+
+
+
+
+
+
 
 
 
@@ -7441,6 +14789,14 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             e
 
 
@@ -7449,7 +14805,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7473,7 +14853,23 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             502,
+
+
+
+
+
+
+
+
 
 
 
@@ -7489,6 +14885,14 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             + str(e)
 
 
@@ -7497,7 +14901,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7529,7 +14957,39 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "success": True,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7553,7 +15013,23 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             title,
+
+
+
+
+
+
+
+
 
 
 
@@ -7585,7 +15061,39 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -7601,7 +15109,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7625,7 +15157,31 @@ def generate_title(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
 def generate_description(payload: dict):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7657,7 +15213,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     description = (
+
+
+
+
+
+
+
+
 
 
 
@@ -7673,7 +15253,23 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         or payload.get("product_description")
+
+
+
+
+
+
+
+
 
 
 
@@ -7689,6 +15285,14 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         or ""
 
 
@@ -7697,7 +15301,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7721,7 +15349,23 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         payload.get("category")
+
+
+
+
+
+
+
+
 
 
 
@@ -7737,7 +15381,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7769,7 +15437,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -7785,6 +15477,14 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             "description is required"
 
 
@@ -7793,7 +15493,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7825,7 +15549,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         generated = (
+
+
+
+
+
+
+
+
 
 
 
@@ -7841,7 +15589,23 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             .generate_product_description(
+
+
+
+
+
+
+
+
 
 
 
@@ -7857,7 +15621,23 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
                 category=category,
+
+
+
+
+
+
+
+
 
 
 
@@ -7873,7 +15653,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7905,7 +15709,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         print(
+
+
+
+
+
+
+
+
 
 
 
@@ -7921,6 +15749,14 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             e
 
 
@@ -7929,7 +15765,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7953,7 +15813,23 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             502,
+
+
+
+
+
+
+
+
 
 
 
@@ -7969,6 +15845,14 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             + str(e)
 
 
@@ -7977,7 +15861,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8009,7 +15917,39 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         "success": True,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8033,7 +15973,23 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
             generated,
+
+
+
+
+
+
+
+
 
 
 
@@ -8065,7 +16021,39 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -8081,7 +16069,31 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8105,7 +16117,23 @@ def generate_description(payload: dict):
 
 
 
+
+
+
+
+
+
+
+
 async def transcribe(
+
+
+
+
+
+
+
+
 
 
 
@@ -8121,6 +16149,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
     language: str = "hi",
 
 
@@ -8129,7 +16165,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
 ):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8161,7 +16221,39 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     audio_bytes = await file.read()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8193,7 +16285,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -8209,6 +16325,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             "Empty audio file"
 
 
@@ -8217,7 +16341,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8249,7 +16397,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -8265,7 +16437,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             "Audio file is too large"
+
+
+
+
+
+
+
+
 
 
 
@@ -8289,7 +16477,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     mime_type = (
+
+
+
+
+
+
+
+
 
 
 
@@ -8305,6 +16517,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         or "audio/wav"
 
 
@@ -8313,7 +16533,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8345,7 +16589,39 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     try:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8369,6 +16645,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             file.filename or "audio.wav"
 
 
@@ -8377,7 +16661,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         ).suffix
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8409,7 +16717,39 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             suffix = ".wav"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8433,7 +16773,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             delete=False,
+
+
+
+
+
+
+
+
 
 
 
@@ -8449,7 +16805,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         ) as temp:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8481,7 +16861,39 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             temp_path = temp.name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8505,7 +16917,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         audio_file = (
+
+
+
+
+
+
+
+
 
 
 
@@ -8521,7 +16949,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             .client
+
+
+
+
+
+
+
+
 
 
 
@@ -8537,7 +16981,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             .upload(
+
+
+
+
+
+
+
+
 
 
 
@@ -8553,6 +17013,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             )
 
 
@@ -8561,7 +17029,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8585,7 +17077,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             state["gemini"]
+
+
+
+
+
+
+
+
 
 
 
@@ -8601,6 +17109,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             .interactions
 
 
@@ -8609,7 +17125,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             .create(
+
+
+
+
+
+
+
+
 
 
 
@@ -8633,6 +17165,22 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 input=[
 
 
@@ -8641,7 +17189,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
                     {
+
+
+
+
+
+
+
+
 
 
 
@@ -8665,7 +17229,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                         "uri":
+
+
+
+
+
+
+
+
 
 
 
@@ -8689,7 +17277,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                         "mime_type":
+
+
+
+
+
+
+
+
 
 
 
@@ -8705,6 +17317,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
                             or mime_type,
 
 
@@ -8713,7 +17333,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
                     }
+
+
+
+
+
+
+
+
 
 
 
@@ -8737,7 +17373,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 generation_config={
+
+
+
+
+
+
+
+
 
 
 
@@ -8761,7 +17421,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                         "language_codes": (
+
+
+
+
+
+
+
+
 
 
 
@@ -8777,6 +17461,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
                             if language
 
 
@@ -8785,7 +17477,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
                             else []
+
+
+
+
+
+
+
+
 
 
 
@@ -8809,7 +17517,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                         "mode": "smart",
+
+
+
+
+
+
+
+
 
 
 
@@ -8825,6 +17557,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
                 },
 
 
@@ -8833,7 +17573,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
 
 
 
@@ -8857,7 +17613,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         transcript = (
+
+
+
+
+
+
+
+
 
 
 
@@ -8873,6 +17653,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             or ""
 
 
@@ -8881,7 +17669,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         ).strip()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8913,7 +17725,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             raise RuntimeError(
+
+
+
+
+
+
+
+
 
 
 
@@ -8929,7 +17765,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8961,7 +17821,39 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             "success": True,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8985,7 +17877,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
                 transcript,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9009,7 +17925,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
                 transcript,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9033,6 +17973,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
                 language,
 
 
@@ -9041,7 +17989,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9073,7 +18045,39 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         raise
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9105,7 +18109,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         print(
+
+
+
+
+
+
+
+
 
 
 
@@ -9121,6 +18149,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             e
 
 
@@ -9129,7 +18165,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9153,7 +18213,23 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             502,
+
+
+
+
+
+
+
+
 
 
 
@@ -9169,6 +18245,14 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
             + str(e)
 
 
@@ -9177,7 +18261,31 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9209,7 +18317,39 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         if temp_path:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9241,6 +18381,22 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 os.remove(temp_path)
 
 
@@ -9257,7 +18413,39 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             except OSError:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9297,11 +18485,45 @@ async def transcribe(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
+
+
 
 # AI BACKGROUND REMOVAL
 
+
+
 # ============================================================
+
+
+
+
+
+
 
 
 
@@ -9309,37 +18531,35 @@ async def transcribe(
 
 @app.post("/ai/remove-background")
 
+
+
 async def remove_background(
+
+
 
     image: UploadFile = File(...)
 
+
+
 ):
+
+
 
     """Remove the background from a product image using BiRefNet."""
 
-
-
-    if not state.get("background_remover_ready"):
-
+    try:
+        remover = await run_in_threadpool(get_background_remover)
+    except Exception as e:
         raise HTTPException(
-
             503,
-
-            "Background remover unavailable: "
-
-            + str(
-
-                state.get(
-
-                    "background_remover_error",
-
-                    "model not loaded"
-
-                )
-
-            )
-
+            "Background remover unavailable: " + str(e)
         )
+
+    
+
+
+
+
 
 
 
@@ -9347,9 +18567,19 @@ async def remove_background(
 
 
 
+
+
+
+
     if not raw:
 
+
+
         raise HTTPException(400, "Empty image file")
+
+
+
+
 
 
 
@@ -9357,35 +18587,71 @@ async def remove_background(
 
 
 
+
+
+
+
     print(f"✂️ Removing background from: {image.filename or 'uploaded_image'}")
+
+
 
     print(f"📐 Background removal input: {im.width}x{im.height}")
 
 
 
+
+
+
+
     try:
+
+
 
         result = await run_in_threadpool(
 
-            state["background_remover"].remove_background,
+
+
+            remover.remove_background,
+
+
 
             im
 
+
+
         )
+
+
 
     except Exception as e:
 
+
+
         print("❌ Background removal failed:", e)
+
+
 
         raise HTTPException(500, "Background removal failed: " + str(e))
 
 
 
+
+
+
+
     output = io.BytesIO()
+
+
 
     result.save(output, format="PNG")
 
+
+
     output.seek(0)
+
+
+
+
 
 
 
@@ -9393,21 +18659,41 @@ async def remove_background(
 
 
 
+
+
+
+
     return Response(
+
+
 
         content=output.getvalue(),
 
+
+
         media_type="image/png",
+
+
 
         headers={
 
+
+
             "X-AI-Provider": "KarigarKart Local ML",
+
+
 
             "X-AI-Model": "BiRefNet",
 
+
+
             "X-AI-Feature": "background-removal",
 
+
+
         },
+
+
 
     )
 
@@ -9415,7 +18701,21 @@ async def remove_background(
 
 
 
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
 
 
 
@@ -9431,7 +18731,31 @@ async def remove_background(
 
 
 
+
+
+
+
+
+
+
+
 # ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9455,7 +18779,23 @@ async def remove_background(
 
 
 
+
+
+
+
+
+
+
+
 @app.post("/ai/studio/enhance")
+
+
+
+
+
+
+
+
 
 
 
@@ -9471,7 +18811,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     image: UploadFile = File(...)
+
+
+
+
+
+
+
+
 
 
 
@@ -9487,7 +18843,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     """
+
+
+
+
+
+
+
+
 
 
 
@@ -9511,7 +18883,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     Pipeline:
+
+
+
+
+
+
+
+
 
 
 
@@ -9527,7 +18923,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
           ↓
+
+
+
+
+
+
+
+
 
 
 
@@ -9543,7 +18955,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
           ↓
+
+
+
+
+
+
+
+
 
 
 
@@ -9559,7 +18987,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
           ↓
+
+
+
+
+
+
+
+
 
 
 
@@ -9575,7 +19019,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
           ↓
+
+
+
+
+
+
+
+
 
 
 
@@ -9591,7 +19051,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
           ↓
+
+
+
+
+
+
+
+
 
 
 
@@ -9615,7 +19091,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     Gemini is NOT used by this endpoint.
+
+
+
+
+
+
+
+
 
 
 
@@ -9639,7 +19139,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -9655,7 +19179,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9679,7 +19227,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         raise HTTPException(
+
+
+
+
+
+
+
+
 
 
 
@@ -9695,7 +19259,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             "Local ML image enhancer unavailable: "
+
+
+
+
+
+
+
+
 
 
 
@@ -9711,7 +19291,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
                 state.get(
+
+
+
+
+
+
+
+
 
 
 
@@ -9727,7 +19323,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
                     "model not loaded"
+
+
+
+
+
+
+
+
 
 
 
@@ -9743,7 +19355,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
 
 
 
@@ -9767,7 +19395,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -9783,7 +19435,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9815,7 +19491,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if not raw:
+
+
+
+
+
+
+
+
 
 
 
@@ -9831,6 +19531,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             400,
 
 
@@ -9839,7 +19547,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             "Empty image file"
+
+
+
+
+
+
+
+
 
 
 
@@ -9863,7 +19587,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -9879,7 +19627,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9911,7 +19683,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -9927,7 +19723,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     #
+
+
+
+
+
+
+
+
 
 
 
@@ -9943,6 +19755,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # at 1200 px, so the maximum output side is about 4800 px.
 
 
@@ -9951,7 +19771,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9983,7 +19827,39 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if max(im.width, im.height) > max_side:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10007,7 +19883,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             im.width,
+
+
+
+
+
+
+
+
 
 
 
@@ -10023,7 +19915,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10047,7 +19963,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             1,
+
+
+
+
+
+
+
+
 
 
 
@@ -10063,7 +19995,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10087,7 +20043,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             1,
+
+
+
+
+
+
+
+
 
 
 
@@ -10103,7 +20075,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10127,7 +20123,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             f"📉 Resizing large enhancement input: "
+
+
+
+
+
+
+
+
 
 
 
@@ -10143,6 +20155,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             f"{new_width}x{new_height}"
 
 
@@ -10151,7 +20171,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10175,6 +20219,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             (new_width, new_height),
 
 
@@ -10183,7 +20235,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             Image.Resampling.LANCZOS
+
+
+
+
+
+
+
+
 
 
 
@@ -10207,7 +20275,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -10223,6 +20315,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # RGB image regardless of the original upload format.
 
 
@@ -10231,7 +20331,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10263,7 +20387,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     im.save(
+
+
+
+
+
+
+
+
 
 
 
@@ -10279,7 +20427,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         format="JPEG",
+
+
+
+
+
+
+
+
 
 
 
@@ -10295,7 +20459,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10327,7 +20515,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     print(
+
+
+
+
+
+
+
+
 
 
 
@@ -10343,6 +20555,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         f"{image.filename or 'uploaded_image'}"
 
 
@@ -10351,7 +20571,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10375,6 +20619,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         f"📐 Enhancement input: "
 
 
@@ -10383,7 +20635,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         f"{im.width}x{im.height}"
+
+
+
+
+
+
+
+
 
 
 
@@ -10407,7 +20675,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -10423,6 +20715,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # The Real-ESRGAN model was loaded once at startup.
 
 
@@ -10431,7 +20731,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10463,7 +20787,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         enhanced_bytes = await run_in_threadpool(
+
+
+
+
+
+
+
+
 
 
 
@@ -10479,6 +20827,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             normalized_raw
 
 
@@ -10487,7 +20843,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10519,7 +20899,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         print(
+
+
+
+
+
+
+
+
 
 
 
@@ -10535,6 +20939,14 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             e
 
 
@@ -10543,7 +20955,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10567,7 +21003,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             500,
+
+
+
+
+
+
+
+
 
 
 
@@ -10583,7 +21035,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             + str(e)
+
+
+
+
+
+
+
+
 
 
 
@@ -10607,7 +21075,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -10623,7 +21115,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
     # ---------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10647,7 +21163,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         content=enhanced_bytes,
+
+
+
+
+
+
+
+
 
 
 
@@ -10671,6 +21203,22 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         headers={
 
 
@@ -10679,7 +21227,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
             "X-AI-Provider":
+
+
+
+
+
+
+
+
 
 
 
@@ -10703,7 +21267,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             "X-AI-Model":
+
+
+
+
+
+
+
+
 
 
 
@@ -10727,7 +21315,31 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             "X-AI-Feature":
+
+
+
+
+
+
+
+
 
 
 
@@ -10743,7 +21355,23 @@ async def studio_enhance(
 
 
 
+
+
+
+
+
+
+
+
         },
+
+
+
+
+
+
+
+
 
 
 

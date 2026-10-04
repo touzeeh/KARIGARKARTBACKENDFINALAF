@@ -15,7 +15,8 @@ opencv-python-headless==5.0.0.93
 transformers
 kornia
 timm
-
+onnxruntime
+huggingface_hub
 # Gemini remains only for the existing audio transcription path
 google-genai
 

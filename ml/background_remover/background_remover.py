@@ -1,67 +1,81 @@
-import torch
+import numpy as np
+import onnxruntime as ort
 from PIL import Image
-from torchvision import transforms
-from transformers import AutoModelForImageSegmentation
+from huggingface_hub import hf_hub_download
 
 
 class BackgroundRemover:
     def __init__(self):
-        print("Initializing KarigarKart Background Remover...")
+        print("Initializing KarigarKart Background Remover with ONNX...")
 
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"Background remover device: {self.device}")
+        self.input_size = 448
 
-        self.model = AutoModelForImageSegmentation.from_pretrained(
-            "ZhengPeng7/BiRefNet_lite",
-            trust_remote_code=True,
+        model_path = hf_hub_download(
+            repo_id="senty-au/BiRefNet_lite-ONNX-dynamic",
+            filename="onnx/model.onnx",
         )
 
-        self.model.to(self.device)
-
-        if self.device == "cpu":
-            self.model.float()
-
-        self.model.eval()
-
-        self.transform = transforms.Compose(
-            [
-                transforms.Resize((1024, 1024)),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    [0.485, 0.456, 0.406],
-                    [0.229, 0.224, 0.225],
-                ),
-            ]
+        session_options = ort.SessionOptions()
+        session_options.intra_op_num_threads = 1
+        session_options.inter_op_num_threads = 1
+        session_options.graph_optimization_level = (
+            ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         )
 
-        print("Background removal model loaded successfully")
+        self.session = ort.InferenceSession(
+            model_path,
+            sess_options=session_options,
+            providers=["CPUExecutionProvider"],
+        )
+
+        self.input_name = self.session.get_inputs()[0].name
+
+        print("ONNX Background Remover loaded successfully")
+        print(f"Input size: {self.input_size}x{self.input_size}")
 
     def remove_background(self, image: Image.Image) -> Image.Image:
         original_size = image.size
 
         image = image.convert("RGB")
 
-        model_dtype = next(self.model.parameters()).dtype
-
-        input_image = (
-            self.transform(image)
-            .unsqueeze(0)
-            .to(device=self.device, dtype=model_dtype)
+        resized = image.resize(
+            (self.input_size, self.input_size),
+            Image.Resampling.BILINEAR,
         )
 
-        with torch.no_grad():
-            prediction = self.model(input_image)[-1].sigmoid().cpu()
+        x = np.asarray(
+            resized,
+            dtype=np.float32,
+        ) / 255.0
 
-        mask = prediction[0].squeeze()
+        x = (
+            x
+            - np.array(
+                [0.485, 0.456, 0.406],
+                dtype=np.float32,
+            )
+        ) / np.array(
+            [0.229, 0.224, 0.225],
+            dtype=np.float32,
+        )
 
-        mask = transforms.ToPILImage()(mask)
+        x = x.transpose(2, 0, 1)[None]
+
+        logits = self.session.run(
+            None,
+            {self.input_name: x},
+        )[0][0, 0]
+
+        alpha = 1.0 / (1.0 + np.exp(-logits))
+
+        mask = Image.fromarray(
+            (alpha * 255).clip(0, 255).astype(np.uint8)
+        )
 
         mask = mask.resize(
             original_size,
-            Image.Resampling.LANCZOS,
+            Image.Resampling.BILINEAR,
         )
-
-        image = image.resize(original_size)
 
         image.putalpha(mask)
 
